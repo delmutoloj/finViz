@@ -22,18 +22,24 @@ financialSummary <- function(deposits, spending) {
 
   # Aggregate income by category
   spending_by_category <- aggregate(Amount ~ Category, data = spending, sum)
-  
+
   # Sort spending by category largest to smallest
   spending_by_category <- spending_by_category[order(
     spending_by_category$Amount, decreasing = TRUE), ]
 
+  # Reset row numbering
+  rownames(spending_by_category) <- NULL
+
   # Aggregate spending by merchant
   spending_by_merchant <- aggregate(Amount ~ Merchant, data = spending, sum)
-  
+
   # Sort spending by merchant largest to smallest
   spending_by_merchant <- spending_by_merchant[order(
     spending_by_merchant$Amount, decreasing = TRUE), ]
-  
+
+  # Rest row numbering
+  rownames(spending_by_merchant) <- NULL
+
   # Print the summary
   cat("Total Income: ", total_in, "\n")
   cat("Total Expenses: ", total_out, "\n")
