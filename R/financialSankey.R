@@ -17,73 +17,109 @@
 #' @import networkD3
 #' @import htmlwidgets
 #' @export
-
-# Dynamic income category naming
 financialSankey <- function(deposits, spending) {
-
-  # make CMD check stop complaining
+  # Make CMD check stop complaining about undefined variables
   `%>%` <- dplyr::`%>%`
-  Category <- Amount <- Merchant <- Source <- Target <- Date <- NULL
+  Category <- Amount <- Merchant <- Source <- Target <- Value <-  NULL
 
-  # Dynamically determine income categories
-  income_categories <- unique(deposits$Category)
+  # Define deduction categories
+  deduction_cats <- c("Taxes", "Insurance", "Retirement")
 
-  # Summarize total income by category
-  income_totals_by_category <- deposits %>%
+  # Summarize deposits by Category
+  deposit_summary <- deposits %>%
     dplyr::group_by(Category) %>%
-    dplyr::summarise(Amount = sum(Amount))
+    dplyr::summarise(Amount = sum(Amount), .groups = "drop")
 
-  income_total <- sum(income_totals_by_category$Amount)  # Total income
+  gross_income <- sum(deposit_summary$Amount)
 
-  # Summarize total expenses by category
-  expense_summary <- spending %>%
-    dplyr::group_by(Category) %>%
-    dplyr::summarise(Amount = sum(Amount))
-
-  # Summarize expenses per vendor within each category
-  vendor_summary <- spending %>%
+  # Summarize spending by Category and Merchant
+  spending_summary <- spending %>%
     dplyr::group_by(Category, Merchant) %>%
-    dplyr::summarise(Amount = sum(Amount))
+    dplyr::summarise(Amount = sum(Amount), .groups = "drop")
 
-  # Create a list of unique nodes in hierarchical order
-  nodes <- data.frame(name = c(income_totals_by_category$Category, "Income",
-                               expense_summary$Category,
-                               unique(spending$Merchant)))
+  # Total Deductions
+  deductions_summary <- spending %>%
+    dplyr::filter(Category %in% deduction_cats) %>%
+    dplyr::group_by(Category) %>%
+    dplyr::summarise(Amount = sum(Amount), .groups = "drop")
 
-  # Function to get the index of a node
-  get_index <- function(name) {
-    match(name, nodes$name) - 1  # Convert to zero-based index for networkD3
+  total_deductions <- sum(deductions_summary$Amount)
+  net_income <- gross_income - total_deductions
+
+  # Other (non-deduction) spending categories
+  net_spending_summary <- spending %>%
+    dplyr::filter(!Category %in% deduction_cats) %>%
+    dplyr::group_by(Category) %>%
+    dplyr::summarise(Amount = sum(Amount), .groups = "drop")
+
+  # Build list of unique nodes
+  nodes <- data.frame(name = c(
+    deposit_summary$Category,  # Dynamic income categories
+    "Gross Income",
+    "Net Income",
+    "Deductions",
+    deduction_cats,  # Fixed deduction categories
+    unique(net_spending_summary$Category),  # Dynamic spending categories
+    unique(spending$Merchant)  # All vendors
+  ), stringsAsFactors = FALSE)
+
+  # Helper to get node index (0-based)
+  get_index <- function(name) match(name, nodes$name) - 1
+
+  # 1. Income Category → Gross Income
+  links <- deposit_summary %>%
+    dplyr::mutate(Source = sapply(Category, get_index),
+                  Target = get_index("Gross Income"),
+                  Value = Amount) %>%
+    dplyr::select(Source, Target, Value)
+
+  # 2. Gross Income → Net Income and Deductions
+  links <- rbind(links,
+                 data.frame(Source = get_index("Gross Income"),
+                            Target = get_index("Net Income"),
+                            Value = net_income),
+                 data.frame(Source = get_index("Gross Income"),
+                            Target = get_index("Deductions"),
+                            Value = total_deductions)
+  )
+
+  # 3. Deductions → Deduction Categories
+  if (nrow(deductions_summary) > 0) {
+    deduction_links <- deductions_summary %>%
+      dplyr::mutate(Source = get_index("Deductions"),
+                    Target = sapply(Category, get_index),
+                    Value = Amount) %>%
+      dplyr::select(Source, Target, Value)
+    links <- rbind(links, deduction_links)
   }
 
-  # Create links for income categories → "Income"
-  links <- data.frame(
-    Source = sapply(income_totals_by_category$Category, get_index),
-    Target = rep(get_index("Income"), nrow(income_totals_by_category)),
-    Value = income_totals_by_category$Amount
-  )
-
-  # Add links for "Income" → Expense categories
-  category_indices <- sapply(expense_summary$Category, get_index)
-  links <- rbind(
-    links,
-    data.frame(Source = get_index("Income"),
-               Target = category_indices,
-               Value = expense_summary$Amount)
-  )
-
-  # Add links for each category → vendor (Ensure all columns match)
-  vendor_links <- vendor_summary %>%
+  # 4. Deduction Categories → Vendors
+  deduction_vendor_links <- spending_summary %>%
+    dplyr::filter(Category %in% deduction_cats) %>%
     dplyr::mutate(Source = sapply(Category, get_index),
-           Target = sapply(Merchant, get_index)) %>%
+                  Target = sapply(Merchant, get_index)) %>%
     dplyr::select(Source, Target, Value = Amount)
+  links <- rbind(links, deduction_vendor_links)
 
-  # Ensure vendor_links has the same structure as links
-  vendor_links <- vendor_links[, c("Source", "Target", "Value")]
+  # 5. Net Income → Other Spending Categories
+  if (nrow(net_spending_summary) > 0) {
+    net_category_links <- net_spending_summary %>%
+      dplyr::mutate(Source = get_index("Net Income"),
+                    Target = sapply(Category, get_index),
+                    Value = Amount) %>%
+      dplyr::select(Source, Target, Value)
+    links <- rbind(links, net_category_links)
+  }
 
-  # Combine all links
-  links <- rbind(links, vendor_links)
+  # 6. Other Spending Categories → Vendors
+  net_vendor_links <- spending_summary %>%
+    dplyr::filter(!Category %in% deduction_cats) %>%
+    dplyr::mutate(Source = sapply(Category, get_index),
+                  Target = sapply(Merchant, get_index)) %>%
+    dplyr::select(Source, Target, Value = Amount)
+  links <- rbind(links, net_vendor_links)
 
-  # Create Sankey Diagram
+  # Create Sankey diagram
   sankey <- networkD3::sankeyNetwork(
     Links = links,
     Nodes = nodes,
@@ -91,13 +127,13 @@ financialSankey <- function(deposits, spending) {
     Target = "Target",
     Value = "Value",
     NodeID = "name",
-    fontSize = 14,
-    nodeWidth = 30
+    fontSize = 12,
+    nodeWidth = 25
   )
 
-  # Add value labels
+  # Add value labels to nodes
   sankey <- htmlwidgets::onRender(
-    x = sankey,
+    sankey,
     jsCode = '
       function(el, x){
         d3.select(el).selectAll(".node text")
@@ -108,3 +144,4 @@ financialSankey <- function(deposits, spending) {
 
   return(sankey)
 }
+
