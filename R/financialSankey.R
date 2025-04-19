@@ -128,7 +128,8 @@ financialSankey <- function(deposits, spending) {
     Value = "Value",
     NodeID = "name",
     fontSize = 12,
-    nodeWidth = 25
+    nodeWidth = 25,
+    iterations = 50
   )
 
   # Add value labels to nodes
