@@ -17,7 +17,7 @@
 #' @import networkD3
 #' @import htmlwidgets
 #' @export
-financialSankey <- function(deposits, spending) {
+financialSankey <- function(deposits, spending, width = 900, height = 600) {
   # Make CMD check stop complaining about undefined variables
   `%>%` <- dplyr::`%>%`
   Category <- Amount <- Merchant <- Source <- Target <- Value <-  NULL
@@ -129,6 +129,8 @@ financialSankey <- function(deposits, spending) {
     NodeID = "name",
     fontSize = 12,
     nodeWidth = 25,
+    width = width, # Width argument
+    height = height, # Height argument
     iterations = 50 # Add more iterations to avoid overlapping
   )
 
