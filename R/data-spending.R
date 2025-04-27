@@ -4,7 +4,7 @@
 #' a checking account statement, and payroll deductions.
 #' This data is an output of the statementCombine() function.
 #'
-#' @format A data frame with 52 rows and 5 variables:
+#' @format A data frame with 5743 rows and 5 variables:
 #' \describe{
 #'   \item{Date}{Date in format YYYY-MM-DD}
 #'   \item{Merchant}{Where the transaction was made}
