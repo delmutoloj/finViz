@@ -4,7 +4,7 @@
 #' The deposit data also contains entries for employer contributions to
 #' retirement accounts so that the deductions are properly accounted for.
 #'
-#' @format A data frame with 5743 rows and 5 variables:
+#' @format A data frame with 6 rows and 5 variables:
 #' \describe{
 #'   \item{Date}{Date in format YYYY-MM-DD}
 #'   \item{Merchant}{Deposit source}
