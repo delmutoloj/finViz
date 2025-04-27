@@ -143,6 +143,15 @@ financialSankey <- function(deposits, spending) {
     '
   )
 
+  # Set plot size
+  sankey <- htmlwidgets::sizingPolicy(
+    sankey,
+    browser.fill = TRUE,
+    viewer.fill = TRUE,
+    knitr.defaultWidth = "100%",
+    knitr.defaultHeight = "600px"
+  )
+
   return(sankey)
 }
 
