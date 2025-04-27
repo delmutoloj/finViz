@@ -129,6 +129,7 @@ financialSankey <- function(deposits, spending) {
     NodeID = "name",
     fontSize = 12,
     nodeWidth = 25,
+    nodePadding = 15, # Increase padding for text readability
     iterations = 50 # Add more iterations to avoid overlapping
   )
 
