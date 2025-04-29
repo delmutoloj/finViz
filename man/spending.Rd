@@ -23,5 +23,6 @@ spending
 \description{
 A dataset containing transaction data combined from: credit card statements,
 a checking account statement, and payroll deductions.
+This data is an output of the statementCombine() function.
 }
 \keyword{datasets}
